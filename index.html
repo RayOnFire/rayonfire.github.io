@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Canvas tutorial</title>
+    <style type="text/css">
+      canvas { border: 1px solid black; margin-left: 200px;}
+      video {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="tutorial"></canvas>
+    <video src="http://www.sample-videos.com/video/mp4/720/big_buck_bunny_720p_1mb.mp4" controls="true" id="video"></video>
+    <button id="play" onclick="play();">Play</button>
+    <button id="pause" onclick="pause();">Pause</button>
+    <button id="toggle-danmu" onclick="toggleDanmu();">Disable</button>
+    <input type="text" id="danmu-content"/>
+    <button id="danmu-send" onclick="send();">发送</button>
+    <script type="text/javascript">
+      function Danmu(text, time, style) {
+        var canvas = document.getElementById('tutorial')
+        var ctx = canvas.getContext('2d');
+        ctx.font = fontStyle;
+        var width = ctx.measureText(text).width;
+        var startPositionRange = [-(width + time * speedPerMilliseconds), -time * speedPerMilliseconds, time]
+        //console.log(startPositionRange);
+        var floor = checkFloor(startPositionRange);
+        var display = true;
+        //while (canvasWidth == 0);
+        if ((floor+1)*50 > canvas.height) display = false;
+        //console.log(display);
+        return {
+          text: text,
+          timeMarginLeft: time,
+          startPositionLeft: -(width + time * speedPerMilliseconds), // draw it minus left to hide from canvas
+          currentPosition: -(width + time * speedPerMilliseconds),
+          width: width,
+          floor: floor,
+          display: display
+        }
+      }
+      function TopFixedDanmu(text, time, style) {
+
+      }
+      function BottomFixedDanmu(text, time, style) {
+
+      }
+      function checkFloor (range) {
+        for (var i = 0; i < floors.length; i++) {
+          if (floors[i].length == 0) {
+            floors[i].push(range);
+            return i;
+          }
+          var flag = false;
+          for (var j = 0; j < floors[i].length; j++) {
+            if (!(range[1] < floors[i][j][0] || range[0] > floors[i][j][1])) {
+              flag = !flag;
+              break;
+            }
+          }
+          if (!flag) {
+            floors[i].push(range);
+            return i; // return current floor
+          }
+        }
+      }
+      function play() {
+        /*playedInterval = window.setInterval(function () {
+          currentPlayedPosition += 1;
+          //console.log(currentPlayedPosition);
+        }, 10);*/
+        // set canvas size = video size when known
+        if (video.paused) {
+          video.play();
+          draw();
+        }
+      }
+      function pause() {
+        if (!video.paused) video.pause();
+      }
+      function toggleDanmu() {
+        if (danmuEnable) {
+          document.getElementById("toggle-danmu").innerHTML = "Enable";
+        } else {
+          document.getElementById("toggle-danmu").innerHTML = "Disable";
+        }
+        danmuEnable = !danmuEnable;
+      }
+      function send() {
+        var now = new Date();
+        var currentPosition = now - startTime;
+        var danmuInput = document.getElementById("danmu-content");
+        var text = danmuInput.value;
+        danmuLib.push(Danmu(text, currentPosition));
+        danmuInput.value = "";
+      }
+      function draw() {
+        var now = new Date();
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        ctx.drawImage(video, 0, 0);
+        var currentVideoTime = video.currentTime;
+        var count = 0;
+        if (danmuEnable) {
+          for (var i = 0; i < danmuLibCanPlay.length; i++) {
+            if (danmuLibCanPlay[i].display) {
+              var leftAnimate = danmuLibCanPlay[i].startPositionLeft + currentVideoTime * 1000 *speedPerMilliseconds;
+              //if Danmu didn't appear in canvas, ship it
+              if (leftAnimate > canvas.width || leftAnimate < -danmuLibCanPlay[i].width) continue;
+              count++;
+              //ctx.save();
+              //ctx.translate(leftAnimate, (danmuLib[i].floor + 1) * 50);
+              ctx.font = fontStyle;
+              ctx.fillText(danmuLibCanPlay[i].text, leftAnimate, (danmuLibCanPlay[i].floor + 1) * 50);
+              //ctx.restore();
+            }
+          }
+          //console.log(count);
+        }
+        if (currentPlayedPosition < videoDuration && !video.paused) window.requestAnimationFrame(draw);
+      }
+      var fontStyle = "48px serif";
+      var videoDuration = 0; // in milliseconds
+      var playedInterval = null;
+      var currentPlayedPosition = 0;
+      var startTime = null;
+      var danmuLib = [];
+      var danmuLibCanPlay = []; // use to store Danmu which can be displayed on current canvas size
+      var floors = []; // test for 5 floors
+      var canvas = document.getElementById('tutorial');
+      var ctx = canvas.getContext('2d');
+      var video = document.getElementById('video');
+      var danmuInput = document.getElementById('danmu-content');
+      for (var i = 0; i < 100; i++) {
+        floors.push([]);
+      }
+      var speedPerMilliseconds = 0.05;
+      var wordsLib = ["23333", "这什么鬼啦~", "没时间解释了，快上车", "污污污", "感谢up主", "完结撒花~"]
+      var canvasWidth = 0;
+      var canvasHeight = 0;
+      var danmuEnable = true;
+      var showtimeDict = {};
+
+      video.addEventListener('loadedmetadata', function() {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvasWidth = video.videoWidth;
+        canvasHeight = video.videoHeight;
+        videoDuration = video.duration * 1000;
+        window.setImmediate(function () {
+          for (var i = 0; i < 1000; i++) {
+            var timing = Math.floor(Math.random()*videoDuration);
+            var index = Math.floor(Math.random()*(wordsLib.length-1));
+            //console.log(timing, index);
+            var newDanmu = Danmu(wordsLib[index], timing);
+            danmuLib.push();
+            if (newDanmu.display) danmuLibCanPlay.push(newDanmu);
+          }
+        });
+      });
+
+      // Press enter to send Danmu
+      danmuInput.addEventListener("keydown", function (e) {
+        if (e.key == "Enter") {
+          send();
+        }
+      });
+
+      /*video.addEventListener('play', function() {
+        var $this = this; //cache
+        (function loop() {
+          if (!$this.paused && !$this.ended) {
+            ctx.drawImage($this, 0, 0);
+            setTimeout(loop, 1000 / 30); // drawing at 30fps
+          }
+        })();
+      }, 0);*/
+
+
+    </script>
+  </body>
+</html>
